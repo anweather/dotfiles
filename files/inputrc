@@ -1,0 +1,7 @@
+"\ep": history-search-backward
+"\en": history-search-forward
+
+"\e[1~": beginning-of-line
+"\e[4~": end-of-line
+
+"\eu": "../"

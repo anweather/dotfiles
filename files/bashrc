@@ -1,0 +1,175 @@
+#!/bin/bash
+dotfile_repo=`dirname ${BASH_SOURCE[0]}`
+
+###################################
+# Get latest updates
+###################################
+update_dotfiles(){
+	cd $dotfile_repo
+	if ! [[ `git pull | grep "Already up-to-date"` ]]; then
+		git log --format='%s (%cr)' | head -n1 | terminal-notifier -title "Tools Updated"
+	fi
+	cd -
+}
+if ! [[ -f ${dotfile_repo}/.no_update ]]; then
+	update_dotfiles >/dev/null 2>&1 & disown
+fi
+
+
+###################################
+# Utility Functions
+###################################
+set_env_var(){
+	var_name="$1"
+	var_val="$2"
+
+	if ! test "${!var_name}"; then
+		eval export "$var_name=\"$var_val\""
+	fi
+}
+
+set_alias(){
+	alias_name=$1
+	alias_val=$2
+
+	if ! alias "$alias_name" >/dev/null 2>&1; then
+		eval alias "$alias_name=\"$alias_val\""
+	fi
+}
+
+set_color(){
+	#Colorize output if and only if output is connected to a tty and the tty supports colors
+	if [ -t 1 ]; then
+		ncolors=$(tput colors 2> /dev/null)
+		if [ -n "$ncolors" ] && [ "$ncolors" -ge 8 ]; then
+			normal="$(tput sgr0)"
+			bold="$(tput bold)"
+			red="$(tput setaf 9)"
+			green="$(tput setaf 2)"
+			yellow="$(tput setaf 3)"
+			blue="$(tput setaf 4)"
+		fi
+	fi
+}
+
+git_status(){
+	local status_porcelain
+	if status_porcelain=$(git status --porcelain 2> /dev/null); then
+		local status_full=$(git status)
+
+		#Get git branch status
+		local branch
+		printf "${bold}${yellow}"
+		if branch=$(git rev-parse --abbrev-ref HEAD 2> /dev/null); then
+			if [[ "$branch" == "HEAD" ]]; then
+				printf "${red} in ↗ detached HEAD state"
+			else
+				printf " on ⎇  $branch"
+			fi
+		fi
+
+		printf " ["
+
+		#Check for un-commited changes
+		if ! $(git diff --quiet --ignore-submodules --cached); then
+			printf "+"
+		fi
+		#Check for un-staged changes
+		if ! $(git diff-files --quiet --ignore-submodules --); then
+			printf "!"
+		fi
+		#Check for un-tracked changes
+		if [ -n "$(git ls-files --others --exclude-standard)" ]; then
+			printf "?"
+		fi
+		#Check for stashed changes
+		if $(git rev-parse --verify refs/stash &>/dev/null); then
+			printf "$"
+		fi
+		#Check if working branch is behind the remote repository
+		if [ "$(printf "$status_full" | grep -F 'branch is behind' | wc -l)" -gt "0" ]; then
+			printf "⇣"
+		fi
+		#Check if working branch is ahead of the remote repository
+		if [ "$(printf "$status_full" | grep -F 'branch is ahead' | wc -l)" -gt "0" ]; then
+			printf "⇡"
+		fi
+		printf "]${normal}"
+	fi
+}
+
+###################################
+# Pretty Colors
+###################################
+# PS1 has a default value of "\h:\W \u\$"
+# So if it is set to the default, unset it, so we can set it to our custom value.
+if [[ `echo $PS1` == "\\h:\\W \\u\\$" ]]; then
+	unset PS1
+	set_color
+	PROMPT_COMMAND='PS1="${bold}${green}\u${normal}:${bold}${blue}\w${normal}$(git_status)\n$ "'
+fi
+set_env_var CLICOLOR 1
+set_env_var LSCOLORS gxBxhxDxfxhxhxhxhxcxcx
+alias grep='grep --color=auto'
+alias egrep='egrep --color=auto'
+alias fgrep='fgrep --color=auto'
+
+
+###################################
+# Set PATH to include scripts
+###################################
+
+
+###################################
+# Misc ENV variables
+###################################
+set_env_var SVN_EDITOR `which vi`
+
+
+###################################
+# Aliases
+###################################
+alias git="2> >(grep -v '|.*|\|+.*+\|^$') git"
+alias ssh="2> >(grep -v '|.*|\|+.*+\|^$') ssh"
+alias hgrep="history | grep"
+alias sudoedit="sudo vi"
+alias timeout="gtimeout"
+
+# Navigation Stuff
+set_alias cd.. 'cd ..'
+set_alias .. 'cd ..'
+set_alias ... 'cd ../..'
+set_alias .... 'cd ../../..'
+set_alias ..... 'cd ../../../..'
+set_alias .4 'cd ../../../..'
+set_alias .5 'cd ../../../../..'
+
+
+###################################
+# Useful Functions
+###################################
+
+
+###################################
+# Tools
+###################################
+
+###################################
+# Gulp Task Auto-Completion
+###################################
+
+# Provides tab completion for gulp tasks
+function _gulp_task_completions {
+	# Get the current word being completed
+	local cur="${COMP_WORDS[COMP_CWORD]}"
+	# Cache all gulp tasks for current directory if they are not cached already
+	if [ "${_gulp_cached_directory}" != "$(pwd)" ]; then
+		_gulp_cached_directory="$(pwd)"
+		_gulp_task_completion_list=$(gulp --tasks-simple)
+	fi
+	# Reply with all the suggestions that are prefixed with the word being completed
+	COMPREPLY=($(compgen -W "${_gulp_task_completion_list}" -- "${cur}"))
+}
+
+# Link to `_gulp_task_completions` function for gulp tab completion
+complete -o default -F _gulp_task_completions gulp
