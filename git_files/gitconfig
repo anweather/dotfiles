@@ -29,9 +29,6 @@
 [push]
 	default = current
 
-[url "https://"]
-	insteadOf = git://
-
 [alias]
 	l = "log --no-merges"
 	lgm = "log --format='%Cred%h%Creset %s %Cgreen(%cr) %C(blue)<%an>%Creset%C(yellow)%d%Creset'"
