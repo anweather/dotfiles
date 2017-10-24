@@ -1,6 +1,9 @@
 #!/bin/bash
 dotfile_repo=`dirname ${BASH_SOURCE[0]}`
 
+# Prompt user to install homebrew
+which brew >/dev/null || echo "Did you install homebrew?"
+
 ###################################
 # Get latest updates
 ###################################
